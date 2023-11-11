@@ -1,10 +1,13 @@
 package com.azoulux.SpringSecurityAuth.controllers;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,12 +36,12 @@ public class LoginController {
     }
 
     @GetMapping("/")
-    public String getUserInfo(Principal user) {
+    public String getUserInfo(Principal user, @AuthenticationPrincipal OidcUser oidcUser) {
         StringBuffer userInfo = new StringBuffer();
         if (user instanceof UsernamePasswordAuthenticationToken) {
             userInfo.append(getUsernamePasswordLoginInfo(user));
         } else if (user instanceof OAuth2AuthenticationToken) {
-            userInfo.append(getOAuth2LoginInfo(user));
+            userInfo.append(getOAuth2LoginInfo(user, oidcUser));
         } else {
             userInfo.append("NA");
         }
@@ -57,7 +60,7 @@ public class LoginController {
         return usernameInfo;
     }
 
-    private StringBuffer getOAuth2LoginInfo(Principal user) {
+    private StringBuffer getOAuth2LoginInfo(Principal user, OidcUser oidcUser) {
         StringBuffer protectedInfo = new StringBuffer();
         OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) user;
         OAuth2AuthorizedClient authClient = authorizedClient.loadAuthorizedClient(
@@ -68,6 +71,16 @@ public class LoginController {
             protectedInfo.append("Welcome, ").append(userAttributes.get("name")).append("<br><br>");
             protectedInfo.append("email : ").append(userAttributes.get("email")).append("<br><br>");
             protectedInfo.append("Access token :").append(userToken);
+
+            OidcIdToken idToken = oidcUser.getIdToken();
+            if (idToken != null) {
+                protectedInfo.append("<br><br>Token Value : ").append(idToken.getTokenValue()).append("<br><br>");
+                protectedInfo.append("Token mapped value : ").append("<br><br>");
+                Map<String, Object> claims = idToken.getClaims();
+                for (String key: claims.keySet()) {
+                    protectedInfo.append(key).append(" : ").append(claims.get(key)).append("<br>");
+                }
+            }
         } else {
             protectedInfo.append("NA");
         }
